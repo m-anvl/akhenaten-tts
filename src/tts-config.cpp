@@ -1,15 +1,20 @@
 #include "tts-config.hpp"
 
+#include <format>
+#include <iostream>
+
 bool TTSConfig::parseConfigScript(const fs::path &configFile)
 {
 	if (!fs::exists(configFile)) {
-		fmt::println("The specified configuration file does not exist: \"{}\"", configFile.string());
+		std::cout << std::format("The specified configuration file does not exist: \"{}\"\n",
+								 configFile.string());
 		return false;
 	}
 
 	lua["config"] = lua.runFile(configFile.string());
 	if (!lua["config"].valid()) {
-		fmt::println("Lua: Unable to load specified configuration file: \"{}\"", configFile.string());
+		std::cout << std::format("Lua: Unable to load specified configuration file: \"{}\"\n",
+								 configFile.string());
 		return false;
 	}
 
@@ -19,7 +24,8 @@ bool TTSConfig::parseConfigScript(const fs::path &configFile)
 	espeakData = fs::absolute(espeakDataStr).lexically_normal();
 
 	if (!fs::exists(espeakData)) {
-		fmt::println("The specified espeak-ng data folder does not exist: \"{}\"", espeakData.string());
+		std::cout << std::format("The specified espeak-ng data folder does not exist: \"{}\"\n",
+								 espeakData.string());
 		result = false;
 	}
 
@@ -27,11 +33,11 @@ bool TTSConfig::parseConfigScript(const fs::path &configFile)
 	cache = fs::absolute(cacheStr).lexically_normal();
 
 	if (!lua["config"]["figures"].valid()) {
-		fmt::println("Figures definitions are missed in the config script.");
+		std::cout << std::format("Figures definitions are missed in the config script.\n");
 		result = false;
 	}
 	if (!lua["config"]["voices"].valid()) {
-		fmt::println("Voices definitions are missed in the config script.");
+		std::cout << std::format("Voices definitions are missed in the config script.\n");
 		result = false;
 	}
 	loaded = result;

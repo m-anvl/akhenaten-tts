@@ -31,7 +31,6 @@ set(app_include_dirs
 
 set(app_libraries
     cxxopts::cxxopts
-    fmt::fmt
     libpiper
     libpiper_onnx
     cpr::cpr

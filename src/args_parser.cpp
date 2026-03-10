@@ -2,9 +2,10 @@
 
 #include <cxxopts.hpp>
 #include <filesystem>
-#include <fmt/base.h>
-#include <fmt/ranges.h>
+#include <format>
+#include <iostream>
 #include <string>
+#include <ranges>
 
 namespace fs = std::filesystem;
 
@@ -27,46 +28,50 @@ bool parseCmdLineArguments(int argc, char* argv[], TTSConfig &config, tts::Synth
 	
 	const auto unmatched = parsed.unmatched();
 	if (!unmatched.empty()) {
-		fmt::println("Unrecognized command line argument(s): {}", unmatched);
-		fmt::println("{}", options.help());
+		auto print = [](const auto &arg) { std::cout << std::format(" \"{}\"", arg); };
+
+		std::cout << std::format("Unrecognized command line argument(s):");
+		std::ranges::for_each(unmatched, print);
+		std::cout << std::format("\n{}\n", options.help());
 		return false;
 	}
 	if (parsed.count("help") || argc == 1) {
-		fmt::println("{}", options.help());
+		std::cout << std::format("{}\n", options.help());
 		exit(0);
 	}
 
 	if (parsed.count("figure")) {
 		synthRequest.figure = parsed["figure"].as<std::string>();
 	} else {
-		fmt::println("Figure/character is required (--figure)");
+		std::cout << std::format("Figure/character is required (--figure)\n");
 		resultOk = false;
 	}
 
 	if (parsed.count("phrase")) {
 		synthRequest.phrase = parsed["phrase"].as<std::string>();
 	} else {
-		fmt::println("Text phrase to synthesize is required (--phrase)");
+		std::cout << std::format("Text phrase to synthesize is required (--phrase)\n");
 		resultOk = false;
 	}
 
 	if (parsed.count("output")) {
 		synthRequest.outputFilename = fs::absolute(parsed["output"].as<fs::path>()).lexically_normal();
 	} else {
-		fmt::println("Output filename is required (--output)");
+		std::cout << std::format("Output filename is required (--output)\n");
 		resultOk = false;
 	}
 
 	if (parsed.count("lang")) {
 		synthRequest.lang = parsed["lang"].as<std::string>();
 	} else {
-		fmt::println("Language is required (--lang)");
+		std::cout << std::format("Language is required (--lang)\n");
 		resultOk = false;
 	}
 
 	const auto configFile = fs::absolute(parsed["config"].as<fs::path>()).lexically_normal();
 	if (!config.parseConfigScript(configFile)) {
-		fmt::println("Unable to parse configuration file: \"{}\"", configFile.string());
+		std::cout << std::format("Unable to parse configuration file: \"{}\"\n",
+								 configFile.string());
 		return false;
 	}
 	return resultOk;

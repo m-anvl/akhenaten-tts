@@ -1,9 +1,10 @@
 #include "tts.hpp"
 
-#include <cstring>
-#include <fmt/base.h>
-#include <fstream>
 #include <cpr/session.h>
+#include <cstring>
+#include <format>
+#include <fstream>
+#include <iostream>
 
 namespace
 {
@@ -43,7 +44,8 @@ namespace
 
 		std::ofstream audioStream(filename, std::ios::binary);
 		if (!audioStream) {
-			fmt::println("Failed to create output audio file: {}", filename.string());
+			std::cerr << std::format("Failed to create output audio file: \"{}\"\n",
+									 filename.string());
 			return false;
 		}
 		audioStream.seekp(sizeof(WAVHeader_PCM), std::ios::beg); // Reserve space for header first
@@ -57,7 +59,7 @@ namespace
 				break;
 			}
 			if (isError) {
-				fmt::println("An unknown error occurred during synthesizing.");
+				std::cerr << "An unknown error occurred during synthesizing.\n";
 				break;
 			}
 			if (sampleRate == 0) {
@@ -71,7 +73,7 @@ namespace
 		} while(true);
 
 		if (samplesCount == 0) {
-			fmt::println("For some reason, nothing was synthesized");
+			std::cout << "For some reason, nothing was synthesized.\n";
 			audioStream.close();
 			return false;
 		}
@@ -93,7 +95,9 @@ namespace
 			std::error_code ec;
 			fs::create_directories(parent, ec);
 			if (ec) {
-				fmt::println("Unable to create directory \"{}\": {}", parent.string(), ec.message());
+				std::cerr << std::format("Unable to create directory \"{}\": {}\n", 
+										 parent.string(),
+										 ec.message());
 				return false;
 			}
 		}
@@ -108,7 +112,7 @@ namespace
 
 		std::ofstream dstFile(dstFilename, std::ios::binary);
 		if (!dstFile) {
-			fmt::println("Unable to open output file \"{}\"", dstFilename.string());
+			std::cerr << std::format("Unable to open output file \"{}\"\n", dstFilename.string());
 			return false;
 		}
 		session.SetWriteCallback(cpr::WriteCallback{
@@ -131,17 +135,22 @@ namespace
 
 		if (response.error.code != cpr::ErrorCode::OK) {
 			fs::remove(dstFilename);
-			fmt::println("Unable to download \"{}\", error: {}", url, response.error.message);
+			std::cerr << std::format("Unable to download \"{}\", error: {}\n",
+									 url,
+									 response.error.message);
 			return false;
 		}
 		if (response.status_code < 200 || response.status_code >= 300) {
 			fs::remove(dstFilename);
-			fmt::println("Unable to download \"{}\": HTTP error: {}", url, response.status_code);
+			std::cerr << std::format("Unable to download \"{}\": HTTP error: {}\n",
+									 url,
+									 response.status_code);
 			return false;
 		}
 		if (!dstFile.good()) {
 			fs::remove(dstFilename);
-			fmt::println("Failed to flush/close output file: \"{}\"", dstFilename.string());
+			std::cerr << std::format("Failed to flush/close output file: \"{}\"\n",
+									 dstFilename.string());
 			return false;
 		}
 		return true;
@@ -157,14 +166,14 @@ auto  TTS::makeSynthConfig(const tts::Figure &figure, const tts::Language &lang)
 	auto figureCfg = config->get()["figures"][figure];
 
 	if (!figureCfg.valid()) {
-		fmt::println("Unknown figure: \"{}\"", figure);
+		std::cerr << std::format("Unknown figure: \"{}\"\n", figure);
 		return result;
 	}
 
 	auto voiceCfg = figureCfg[lang];
 
 	if (!voiceCfg.valid()) {
-		fmt::println("Undefined language \"{}\" for figure \"{}\".", lang, figure);
+		std::cerr << std::format("Undefined language \"{}\" for figure \"{}\".\n", lang, figure);
 		return result;
 	}
 
@@ -190,23 +199,31 @@ bool TTS::addSynthesizer(const SynthID &id)
 	auto synthCfg = makeSynthConfig(figure, lang);
 
 	if (!synthCfg) {
-		fmt::println("Unable get synthesizer's config for [figure: \"{}\", language: \"{}\"]",
-					 figure, lang);
+		std::cerr << std::format("Unable get synthesizer's config for "
+								 "[figure: \"{}\", lang: \"{}\"]\n",
+								 figure,
+								 lang);
 		return false;
 	}
 	if (!fs::exists(synthCfg.voiceModel) || !fs::exists(synthCfg.voiceModelCfg)) {
-		fmt::println("Downloading voice model files for [figure: \"{}\", language: \"{}\"]",
-					 figure, lang);
+		std::cerr << std::format("Downloading voice model files for "
+								 "[figure: \"{}\", language: \"{}\"]\n",
+								 figure,
+								 lang);
 		if (!fetchVoice(config->get()["figures"][figure][lang]["voiceModel"])) {
-			fmt::println("Unable fetch voice model files for [figure: \"{}\", language: \"{}\"]",
-						 figure, lang);
+			std::cerr << std::format("Unable fetch voice model files for "
+									 "[figure: \"{}\", language: \"{}\"]\n",
+									 figure,
+									 lang);
 			return false;
 		}
 	}
 	auto [insertedIt, result] = synthesizers.emplace(id, synthCfg);
 	if (!result) {
-		fmt::println("Unable make synthesizer for [figure: \"{}\", language: \"{}\"]",
-					 figure, lang);
+		std::cerr << std::format("Unable make synthesizer for "
+								 "[figure: \"{}\", language: \"{}\"]\n",
+								 figure,
+								 lang);
 		return false;
 	}
 	return true;
@@ -219,7 +236,8 @@ bool TTS::fetchVoice(sol::table voice)
 								.lexically_normal();
 
 	if (!downloadFile(url, voiceModelPath)) {
-		fmt::println("Unable to get voice model file: \"{}\"", voiceModelPath.string());
+		std::cerr << std::format("Unable to get voice model file: \"{}\"\n",
+								 voiceModelPath.string());
 		return false;
 	}
 
@@ -227,7 +245,8 @@ bool TTS::fetchVoice(sol::table voice)
 	voiceModelCfgPath += ".json";
 
 	if (!downloadFile(url + ".json", voiceModelCfgPath)) {
-		fmt::println("Unable to get voice model config file: \"{}\"", voiceModelCfgPath.string());
+		std::cerr << std::format("Unable to get voice model config file: \"{}\"\n",
+								 voiceModelCfgPath.string());
 		return false;
 	}
 	return true;
@@ -247,8 +266,10 @@ bool TTS::synthesize(const tts::SynthRequest &task)
 	auto &[ID, synthesizer] = *synthIt;
 
 	if (!synthesizer) {
-		fmt::println("Piper synthesizer for figure: {}, lang: {} is not initialized",
-					 task.figure, task.lang);
+		std::cerr << std::format("Piper synthesizer for "
+								 "[figure: \"{}\", language: \"{}\"] is not initialized\n",
+								 task.figure,
+								 task.lang);
 		return false;
 	}
 	
@@ -257,7 +278,7 @@ bool TTS::synthesize(const tts::SynthRequest &task)
 											&synthesizer.options);
 		result != PIPER_OK) {
 
-		fmt::println("Unable to start piper synthesizer, error code {}", result);
+		std::cerr << std::format("Unable to start piper synthesizer, error code {}\n", result);
 		return false;
 	}
 	piper_audio_chunk chunk;

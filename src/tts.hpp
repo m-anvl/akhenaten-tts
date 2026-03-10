@@ -3,7 +3,6 @@
 #include "tts-config.hpp"
 
 #include <filesystem>
-#include <fmt/base.h>
 #include <map>
 #include <piper.h>
 
